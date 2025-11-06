@@ -1,0 +1,141 @@
+# Raspberry Pi Voice Assistant Configuration
+
+# Audio Settings
+audio:
+  sample_rate: 16000
+  channels: 1
+  chunk_size: 4000
+  mic_device_index: null  # null = default device
+  speaker_device_index: null
+
+# Speech Recognition (Vosk)
+stt:
+  model_path: "./models/vosk-model-small-ru-0.22"
+  model_url: "https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip"
+  language: "ru"
+  min_confidence: 0.5
+
+# Text-to-Speech (Piper)
+tts:
+  model_path: "./models/piper/ru_RU-ruslan-medium.onnx"
+  config_path: "./models/piper/ru_RU-ruslan-medium.onnx.json"
+  speaker_id: 0
+  length_scale: 1.0  # Speech speed (lower = faster)
+  noise_scale: 0.667
+  noise_w: 0.8
+
+# LLM Settings (HuggingFace Transformers)
+llm:
+  # Рекомендуемые модели для RPi 4:
+  # - "IlyaGusev/saiga_mistral_7b_gguf" (через llama.cpp)
+  # - "IlyaGusev/saiga2_7b_lora" (нужна базовая модель)
+  # - "ai-forever/rugpt3large_based_on_gpt2" (легкая, но менее качественная)
+  # - "facebook/opt-1.3b" (легкая англоязычная)
+  model_name: "ai-forever/rugpt3large_based_on_gpt2"
+
+  # Для 4-bit квантизации (экономия памяти)
+  load_in_4bit: true
+  load_in_8bit: false
+  device_map: "auto"
+
+  # Generation parameters
+  max_new_tokens: 256
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 50
+  repetition_penalty: 1.1
+  do_sample: true
+
+  # System prompt
+  system_prompt: |
+    Ты - умный голосовой ассистент для умного дома. Твоя задача помогать пользователю
+    с повседневными задачами, управлять устройствами умного дома, создавать напоминания
+    и отвечать на вопросы. Отвечай кратко и по существу.
+
+# Wake Word Detection
+wake_word:
+  enabled: true
+  keywords:
+    - "привет ассистент"
+    - "слушай"
+  sensitivity: 0.5
+
+  # Porcupine (alternative wake word engine)
+  use_porcupine: false
+  porcupine_access_key: ""  # Get from https://console.picovoice.ai/
+
+# GPIO Activation Button
+gpio:
+  enabled: true
+  button_pin: 17  # GPIO17 (физический pin 11)
+  led_pin: 27     # GPIO27 (физический pin 13) - индикатор состояния
+  bounce_time: 200  # Debounce time in ms
+
+# Smart Home Integration
+smart_home:
+  enabled: true
+
+  # MQTT Settings
+  mqtt:
+    enabled: true
+    broker: "localhost"
+    port: 1883
+    username: ""
+    password: ""
+    client_id: "rpi_voice_assistant"
+    topics:
+      lights: "home/lights"
+      temperature: "home/temperature"
+      devices: "home/devices"
+
+  # GPIO Direct Control
+  gpio_devices:
+    - name: "свет в комнате"
+      pin: 22
+      type: "light"
+    - name: "вентилятор"
+      pin: 23
+      type: "fan"
+
+# Google Calendar Integration
+google_calendar:
+  enabled: true
+  credentials_file: "./config/google_credentials.json"
+  token_file: "./config/google_token.pickle"
+  calendar_id: "primary"
+
+# Reminders and Scheduler
+reminders:
+  enabled: true
+  check_interval: 60  # seconds
+  database_file: "./config/reminders.db"
+
+# Weather API
+weather:
+  enabled: true
+  api_provider: "openweathermap"  # openweathermap, weatherapi
+  api_key: ""  # Set your API key
+  city: "Moscow"
+  units: "metric"
+
+# News API
+news:
+  enabled: true
+  api_key: ""  # Get from https://newsapi.org/
+  country: "ru"
+  max_articles: 5
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  file: "./logs/assistant.log"
+  max_bytes: 10485760  # 10 MB
+  backup_count: 5
+  console_output: true
+
+# Performance
+performance:
+  max_recording_duration: 30  # seconds
+  silence_timeout: 2.0  # seconds of silence before stopping recording
+  cpu_temp_warning: 70  # °C - warn if CPU temp exceeds this
+  cpu_temp_critical: 80  # °C - throttle if CPU temp exceeds this

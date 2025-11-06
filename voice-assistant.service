@@ -1,0 +1,18 @@
+[Unit]
+Description=Raspberry Pi Voice Assistant
+After=network.target sound.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/rpi-voice-assistant
+Environment="PATH=/home/pi/rpi-voice-assistant/venv/bin:/usr/local/bin:/usr/bin:/bin"
+ExecStart=/home/pi/rpi-voice-assistant/venv/bin/python3 /home/pi/rpi-voice-assistant/src/assistant.py
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

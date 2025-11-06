@@ -1,0 +1,45 @@
+# Core dependencies
+vosk>=0.3.45
+sounddevice>=0.4.6
+numpy>=1.24.0
+pyyaml>=6.0
+pyaudio>=0.2.13
+
+# TTS Engine
+piper-tts>=1.2.0
+
+# LLM Integration - HuggingFace Transformers
+transformers>=4.35.0
+torch>=2.0.0
+accelerate>=0.24.0
+sentencepiece>=0.1.99
+protobuf>=3.20.0
+bitsandbytes>=0.41.0  # For 4-bit quantization
+
+# GPIO and Hardware
+RPi.GPIO>=0.7.1
+gpiozero>=2.0
+
+# Wake word detection
+pvporcupine>=2.2.0
+
+# Smart Home Integration
+paho-mqtt>=1.6.1
+
+# Google Calendar Integration
+google-api-python-client>=2.100.0
+google-auth-httplib2>=0.1.1
+google-auth-oauthlib>=1.1.0
+
+# Weather and News APIs
+python-dotenv>=1.0.0
+requests>=2.31.0
+
+# Scheduler and Reminders
+schedule>=1.2.0
+apscheduler>=3.10.4
+
+# Utilities
+python-dateutil>=2.8.2
+pytz>=2023.3
+coloredlogs>=15.0.1
