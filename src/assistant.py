@@ -15,11 +15,38 @@ import logging.handlers
 import signal
 import threading
 import time
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 
 # Добавление путей
 sys.path.insert(0, str(Path(__file__).parent))
+
+
+def sanitize_user_input(text, max_length=500):
+    """
+    Санитизация пользовательского ввода для безопасности
+
+    Args:
+        text: Пользовательский текст
+        max_length: Максимальная длина
+
+    Returns:
+        str: Очищенный текст
+    """
+    if not text:
+        return ""
+
+    # Ограничение длины
+    text = text[:max_length]
+
+    # Удаление управляющих символов (кроме пробела и переноса строки)
+    text = re.sub(r'[\x00-\x08\x0b-\x0c\x0e-\x1f\x7f-\x9f]', '', text)
+
+    # Удаление множественных пробелов
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    return text
 
 # Импорт модулей
 from modules.stt import SpeechRecognizer
@@ -120,18 +147,25 @@ class VoiceAssistant:
             self.logger.info("Загрузка модуля синтеза речи...")
             try:
                 self.tts = TextToSpeech(self.config)
-            except:
-                self.logger.warning("Piper недоступен, использую SimpleTTS")
+            except Exception as e:
+                self.logger.warning(f"Piper недоступен ({e}), использую SimpleTTS")
                 self.tts = SimpleTTS(self.config)
 
             # LLM
-            self.logger.info("Загрузка языковой модели (это может занять время)...")
-            try:
-                self.llm = LLMEngine(self.config)
-            except Exception as e:
-                self.logger.error(f"Не удалось загрузить LLM: {e}")
-                self.logger.warning("Использую SimpleLLM")
+            # Проверяем, хочет ли пользователь использовать простую модель
+            use_simple_llm = self.config.get('llm', {}).get('use_simple_llm', False)
+
+            if use_simple_llm:
+                self.logger.info("Использую SimpleLLM (на основе правил)")
                 self.llm = SimpleLLM(self.config)
+            else:
+                self.logger.info("Загрузка языковой модели (это может занять время)...")
+                try:
+                    self.llm = LLMEngine(self.config)
+                except Exception as e:
+                    self.logger.error(f"Не удалось загрузить LLM: {e}")
+                    self.logger.warning("Использую SimpleLLM")
+                    self.llm = SimpleLLM(self.config)
 
             # Активация
             self.logger.info("Настройка системы активации...")
@@ -202,6 +236,14 @@ class VoiceAssistant:
 
         if not user_text:
             self.tts.speak("Я не расслышал команду")
+            self.activation.set_led_state('off')
+            return
+
+        # Санитизация пользовательского ввода
+        user_text = sanitize_user_input(user_text)
+
+        if not user_text:
+            self.tts.speak("Получена некорректная команда")
             self.activation.set_led_state('off')
             return
 

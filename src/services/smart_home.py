@@ -6,6 +6,7 @@ Smart Home Integration - GPIO and MQTT control
 import logging
 import json
 import re
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -88,11 +89,38 @@ class SmartHomeController:
                 client_id=mqtt_config.get('client_id', 'rpi_assistant')
             )
 
-            # Аутентификация
-            username = mqtt_config.get('username')
-            password = mqtt_config.get('password')
+            # TLS/SSL настройка
+            use_tls = mqtt_config.get('use_tls', False)
+            if use_tls:
+                tls_ca_certs = mqtt_config.get('tls_ca_certs')
+                tls_certfile = mqtt_config.get('tls_certfile')
+                tls_keyfile = mqtt_config.get('tls_keyfile')
+
+                tls_params = {}
+                if tls_ca_certs:
+                    tls_params['ca_certs'] = tls_ca_certs
+                if tls_certfile:
+                    tls_params['certfile'] = tls_certfile
+                if tls_keyfile:
+                    tls_params['keyfile'] = tls_keyfile
+
+                try:
+                    self.mqtt_client.tls_set(**tls_params)
+                    logger.info("TLS/SSL настроен для MQTT")
+                except Exception as e:
+                    logger.error(f"Ошибка настройки TLS для MQTT: {e}")
+                    self.mqtt_client = None
+                    return
+
+            # Аутентификация из переменных окружения
+            username = os.getenv('MQTT_USERNAME') or mqtt_config.get('username')
+            password = os.getenv('MQTT_PASSWORD') or mqtt_config.get('password')
+
             if username and password:
                 self.mqtt_client.username_pw_set(username, password)
+                logger.info(f"MQTT аутентификация настроена для пользователя: {username}")
+            elif username or password:
+                logger.warning("Указан только username или password для MQTT, но не оба")
 
             # Callback'и
             self.mqtt_client.on_connect = self._on_mqtt_connect
@@ -100,12 +128,12 @@ class SmartHomeController:
 
             # Подключение
             broker = mqtt_config.get('broker', 'localhost')
-            port = mqtt_config.get('port', 1883)
+            port = mqtt_config.get('port', 1883 if not use_tls else 8883)
 
             self.mqtt_client.connect(broker, port, 60)
             self.mqtt_client.loop_start()
 
-            logger.info(f"MQTT подключен к {broker}:{port}")
+            logger.info(f"MQTT подключен к {broker}:{port} (TLS: {use_tls})")
 
         except Exception as e:
             logger.error(f"Ошибка подключения к MQTT: {e}")
@@ -232,12 +260,14 @@ class SmartHomeController:
         if GPIO_AVAILABLE:
             try:
                 GPIO.cleanup()
-            except:
-                pass
+                logger.info("GPIO очищен")
+            except Exception as e:
+                logger.debug(f"Ошибка при очистке GPIO: {e}")
 
         if self.mqtt_client:
             try:
                 self.mqtt_client.loop_stop()
                 self.mqtt_client.disconnect()
-            except:
-                pass
+                logger.info("MQTT отключен")
+            except Exception as e:
+                logger.debug(f"Ошибка при отключении MQTT: {e}")

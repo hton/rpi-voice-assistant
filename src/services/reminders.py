@@ -5,7 +5,7 @@ Reminders and Google Calendar Integration
 
 import logging
 import sqlite3
-import pickle
+import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -252,16 +252,26 @@ class GoogleCalendarService:
         try:
             creds = None
 
-            # Загрузка токена если есть
+            # Загрузка токена если есть (используем безопасное JSON хранилище вместо pickle)
             if os.path.exists(self.token_file):
-                with open(self.token_file, 'rb') as token:
-                    creds = pickle.load(token)
+                try:
+                    with open(self.token_file, 'r') as token:
+                        token_data = json.load(token)
+                        creds = Credentials.from_authorized_user_info(token_data, SCOPES)
+                except (json.JSONDecodeError, ValueError) as e:
+                    logger.warning(f"Не удалось загрузить токен из JSON, будет создан новый: {e}")
+                    creds = None
 
             # Если нет валидных credentials, запросить аутентификацию
             if not creds or not creds.valid:
                 if creds and creds.expired and creds.refresh_token:
-                    creds.refresh(Request())
-                else:
+                    try:
+                        creds.refresh(Request())
+                    except Exception as e:
+                        logger.error(f"Не удалось обновить токен: {e}")
+                        creds = None
+
+                if not creds:
                     if not os.path.exists(self.credentials_file):
                         logger.error(f"Файл credentials не найден: {self.credentials_file}")
                         logger.info("Скачайте credentials.json из Google Cloud Console")
@@ -273,9 +283,19 @@ class GoogleCalendarService:
                     )
                     creds = flow.run_local_server(port=0)
 
-                # Сохранение токена
-                with open(self.token_file, 'wb') as token:
-                    pickle.dump(creds, token)
+                # Сохранение токена в JSON формате (безопаснее чем pickle)
+                token_data = {
+                    'token': creds.token,
+                    'refresh_token': creds.refresh_token,
+                    'token_uri': creds.token_uri,
+                    'client_id': creds.client_id,
+                    'client_secret': creds.client_secret,
+                    'scopes': creds.scopes
+                }
+                with open(self.token_file, 'w') as token:
+                    json.dump(token_data, token)
+                # Установка безопасных прав доступа к файлу токена
+                os.chmod(self.token_file, 0o600)
 
             self.service = build('calendar', 'v3', credentials=creds)
             logger.info("Google Calendar аутентификация успешна")

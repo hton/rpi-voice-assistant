@@ -9,9 +9,37 @@ import subprocess
 import tempfile
 import sounddevice as sd
 import numpy as np
+import re
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def sanitize_text_for_tts(text, max_length=1000):
+    """
+    Санитизация текста для безопасного использования в TTS
+
+    Args:
+        text: Текст для санитизации
+        max_length: Максимальная длина текста
+
+    Returns:
+        str: Безопасный текст
+    """
+    if not text:
+        return ""
+
+    # Ограничение длины
+    text = text[:max_length]
+
+    # Удаление потенциально опасных символов и команд
+    # Разрешаем только буквы, цифры, пробелы и базовую пунктуацию
+    text = re.sub(r'[^\w\s\.,!?;:\-—\'"()а-яА-ЯёЁ]', '', text)
+
+    # Удаление последовательных пробелов
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    return text
 
 
 class TextToSpeech:
@@ -61,6 +89,13 @@ class TextToSpeech:
         """
         if not text or not text.strip():
             logger.warning("Пустой текст для произнесения")
+            return False
+
+        # Санитизация текста для безопасности
+        text = sanitize_text_for_tts(text)
+
+        if not text:
+            logger.warning("Текст стал пустым после санитизации")
             return False
 
         logger.info(f"TTS: {text}")
@@ -148,15 +183,21 @@ class TextToSpeech:
             logger.error("Таймаут при генерации речи")
             process.kill()
             return None
+        except subprocess.SubprocessError as e:
+            logger.error(f"Ошибка subprocess при генерации аудио: {e}")
+            return None
         except Exception as e:
             logger.error(f"Ошибка при генерации аудио: {e}")
             return None
         finally:
             # Удаляем временный файл
-            try:
-                os.unlink(output_path)
-            except:
-                pass
+            if 'output_path' in locals() and os.path.exists(output_path):
+                try:
+                    os.unlink(output_path)
+                except OSError as e:
+                    logger.debug(f"Не удалось удалить временный файл {output_path}: {e}")
+                except Exception as e:
+                    logger.warning(f"Неожиданная ошибка при удалении временного файла: {e}")
 
     def _load_wav(self, filepath):
         """
@@ -240,6 +281,13 @@ class SimpleTTS:
         if not text or not text.strip():
             return False
 
+        # Санитизация текста для безопасности
+        text = sanitize_text_for_tts(text)
+
+        if not text:
+            logger.warning("Текст стал пустым после санитизации")
+            return False
+
         logger.info(f"TTS (espeak): {text}")
 
         try:
@@ -260,6 +308,9 @@ class SimpleTTS:
         except FileNotFoundError:
             logger.error("espeak не установлен! Установите: sudo apt-get install espeak")
             return False
+        except subprocess.SubprocessError as e:
+            logger.error(f"Ошибка subprocess espeak: {e}")
+            return False
         except Exception as e:
             logger.error(f"Ошибка espeak: {e}")
             return False
@@ -267,9 +318,13 @@ class SimpleTTS:
     def stop(self):
         """Остановить воспроизведение"""
         try:
-            subprocess.run(['killall', 'espeak'], stderr=subprocess.DEVNULL)
-        except:
-            pass
+            subprocess.run(['killall', 'espeak'], stderr=subprocess.DEVNULL, timeout=5)
+        except subprocess.TimeoutExpired:
+            logger.warning("Таймаут при попытке остановить espeak")
+        except subprocess.SubprocessError as e:
+            logger.debug(f"Ошибка при остановке espeak: {e}")
+        except Exception as e:
+            logger.debug(f"Неожиданная ошибка при остановке espeak: {e}")
 
 
 if __name__ == "__main__":
@@ -283,8 +338,8 @@ if __name__ == "__main__":
 
     try:
         tts = TextToSpeech(config)
-    except:
-        logger.info("Переключение на SimpleTTS")
+    except Exception as e:
+        logger.info(f"Переключение на SimpleTTS: {e}")
         tts = SimpleTTS(config)
 
     print("\n=== Тест синтеза речи ===")

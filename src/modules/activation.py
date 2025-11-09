@@ -214,8 +214,8 @@ class ActivationManager:
                 time.sleep(interval)
                 GPIO.output(pin, GPIO.LOW)
                 time.sleep(interval)
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Ошибка при мигании LED: {e}")
 
     def cleanup(self):
         """Очистка ресурсов GPIO"""

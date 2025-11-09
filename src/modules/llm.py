@@ -60,21 +60,43 @@ class LLMEngine:
 
             # Загрузка токенизатора
             logger.info("Загрузка токенизатора...")
-            self.tokenizer = AutoTokenizer.from_pretrained(
-                model_name,
-                trust_remote_code=True
-            )
+            # Удалён trust_remote_code для безопасности - используйте только проверенные модели
+            try:
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    model_name,
+                    trust_remote_code=False
+                )
+            except Exception as e:
+                logger.warning(f"Не удалось загрузить токенизатор без trust_remote_code: {e}")
+                logger.warning("Попытка загрузки с trust_remote_code=True. ИСПОЛЬЗУЙТЕ ТОЛЬКО ПРОВЕРЕННЫЕ МОДЕЛИ!")
+                self.tokenizer = AutoTokenizer.from_pretrained(
+                    model_name,
+                    trust_remote_code=True
+                )
 
             # Загрузка модели
             logger.info("Загрузка модели (это может занять несколько минут)...")
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_name,
-                quantization_config=quantization_config,
-                device_map=self.llm_config.get('device_map', 'auto'),
-                trust_remote_code=True,
-                torch_dtype=torch.float16 if quantization_config else torch.float32,
-                low_cpu_mem_usage=True
-            )
+            # Удалён trust_remote_code для безопасности
+            try:
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    quantization_config=quantization_config,
+                    device_map=self.llm_config.get('device_map', 'auto'),
+                    trust_remote_code=False,
+                    torch_dtype=torch.float16 if quantization_config else torch.float32,
+                    low_cpu_mem_usage=True
+                )
+            except Exception as e:
+                logger.warning(f"Не удалось загрузить модель без trust_remote_code: {e}")
+                logger.warning("Попытка загрузки с trust_remote_code=True. ИСПОЛЬЗУЙТЕ ТОЛЬКО ПРОВЕРЕННЫЕ МОДЕЛИ!")
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model_name,
+                    quantization_config=quantization_config,
+                    device_map=self.llm_config.get('device_map', 'auto'),
+                    trust_remote_code=True,
+                    torch_dtype=torch.float16 if quantization_config else torch.float32,
+                    low_cpu_mem_usage=True
+                )
 
             # Создание pipeline для удобной генерации
             self.pipeline = pipeline(

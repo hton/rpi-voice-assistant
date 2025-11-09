@@ -46,7 +46,7 @@ class WeatherService:
 
     def _get_openweathermap(self):
         """Получить погоду от OpenWeatherMap"""
-        url = "http://api.openweathermap.org/data/2.5/weather"
+        url = "https://api.openweathermap.org/data/2.5/weather"
         params = {
             'q': self.city,
             'appid': self.api_key,
@@ -54,7 +54,7 @@ class WeatherService:
             'lang': 'ru'
         }
 
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params=params, timeout=10, verify=True)
         response.raise_for_status()
 
         data = response.json()

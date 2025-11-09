@@ -26,11 +26,15 @@ tts:
 
 # LLM Settings (HuggingFace Transformers)
 llm:
+  # Использовать простую модель на основе правил (не требует загрузки больших моделей)
+  use_simple_llm: true  # Установите false для использования полноценной LLM
+
   # Рекомендуемые модели для RPi 4:
   # - "IlyaGusev/saiga_mistral_7b_gguf" (через llama.cpp)
   # - "IlyaGusev/saiga2_7b_lora" (нужна базовая модель)
   # - "ai-forever/rugpt3large_based_on_gpt2" (легкая, но менее качественная)
   # - "facebook/opt-1.3b" (легкая англоязычная)
+  # - "sberbank-ai/rugpt3small_based_on_gpt2" (самая легкая русская модель ~500MB)
   model_name: "ai-forever/rugpt3large_based_on_gpt2"
 
   # Для 4-bit квантизации (экономия памяти)
@@ -62,7 +66,7 @@ wake_word:
 
   # Porcupine (alternative wake word engine)
   use_porcupine: false
-  porcupine_access_key: ""  # Get from https://console.picovoice.ai/
+  # porcupine_access_key берется из переменной окружения PORCUPINE_ACCESS_KEY
 
 # GPIO Activation Button
 gpio:
@@ -80,8 +84,11 @@ smart_home:
     enabled: true
     broker: "localhost"
     port: 1883
-    username: ""
-    password: ""
+    # username и password берутся из переменных окружения MQTT_USERNAME и MQTT_PASSWORD
+    use_tls: false  # Установите true для использования TLS/SSL
+    tls_ca_certs: ""  # Путь к CA сертификату (если используется TLS)
+    tls_certfile: ""  # Путь к клиентскому сертификату (опционально)
+    tls_keyfile: ""   # Путь к ключу клиента (опционально)
     client_id: "rpi_voice_assistant"
     topics:
       lights: "home/lights"
@@ -114,14 +121,14 @@ reminders:
 weather:
   enabled: true
   api_provider: "openweathermap"  # openweathermap, weatherapi
-  api_key: ""  # Set your API key
-  city: "Moscow"
+  # api_key берется из переменной окружения WEATHER_API_KEY
+  # city берется из переменной окружения WEATHER_CITY (по умолчанию Moscow)
   units: "metric"
 
 # News API
 news:
   enabled: true
-  api_key: ""  # Get from https://newsapi.org/
+  # api_key берется из переменной окружения NEWS_API_KEY
   country: "ru"
   max_articles: 5
 
